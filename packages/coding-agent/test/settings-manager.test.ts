@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { DEFAULT_HTTP_IDLE_TIMEOUT_MS } from "../src/core/http-dispatcher.js";
 import { SettingsManager } from "../src/core/settings-manager.js";
 
 describe("SettingsManager", () => {
@@ -254,6 +255,29 @@ describe("SettingsManager", () => {
 
 			// And settings file should be created
 			expect(existsSync(join(projectDir, ".pi", "settings.json"))).toBe(true);
+		});
+	});
+
+	describe("httpIdleTimeoutMs", () => {
+		it("should default to 5 minutes", () => {
+			const manager = SettingsManager.create(projectDir, agentDir);
+			expect(manager.getHttpIdleTimeoutMs()).toBe(DEFAULT_HTTP_IDLE_TIMEOUT_MS);
+		});
+
+		it("should use merged global and project settings", () => {
+			writeFileSync(join(agentDir, "settings.json"), JSON.stringify({ httpIdleTimeoutMs: 300000 }));
+			writeFileSync(join(projectDir, ".pi", "settings.json"), JSON.stringify({ httpIdleTimeoutMs: 0 }));
+
+			const manager = SettingsManager.create(projectDir, agentDir);
+
+			expect(manager.getHttpIdleTimeoutMs()).toBe(0);
+		});
+
+		it("should reject invalid timeout values", () => {
+			writeFileSync(join(agentDir, "settings.json"), JSON.stringify({ httpIdleTimeoutMs: -1 }));
+			const manager = SettingsManager.create(projectDir, agentDir);
+
+			expect(() => manager.getHttpIdleTimeoutMs()).toThrow("Invalid httpIdleTimeoutMs setting");
 		});
 	});
 
